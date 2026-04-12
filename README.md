@@ -1,12 +1,10 @@
 # VARA On A Stick
 
-Bash helpers to build a **headless Debian** VARA node: Xvfb, Wine, Winlink **VARA FM/HF**, optional Wi-Fi AP, and [varanny](https://github.com/islandmagic/varanny) with per–sound-card profile INIs.
+Bash helpers to build a **headless Debian** VARA node: Xvfb, Wine, Winlink **VARA FM/HF**, Wi-Fi AP, and [varanny](https://github.com/islandmagic/varanny) with per–sound-card profile INIs.
 
 Target hardware can be compact PCs (e.g. [HIGOLEPC Mini PC Stick](https://goleminipc.com/products/higolepc-mini-pc-stick-intel-celeron-j4115-windows-11-usb-pd3-0-hdmi-4k-gigabit-ethernet-wifi-5-0-bt-5-2-for-office-home?variant=45594960986392)); headless Linux runs well on modest RAM (e.g. 4 GB).
 
-**Repository:** [github.com/islandmagic/vara-on-a-stick](https://github.com/islandmagic/vara-on-a-stick)
-
-**Where files live:** Installers, logs, profiles, Wine prefix (`wineprefixes/vara`), launchers, and `wine.env` are under **`/opt/vara`** (tree created by `setup-headless-prereqs.sh`). Scripts honor `VARA_ROOT`, `VARA_INSTALLERS_DIR`, and related env vars. **Migrating from an old layout:** stop Wine, move `~/.local/share/wineprefixes/vara` → `/opt/vara/wineprefixes/vara`, `chown -R ham:ham` that tree, and point `/opt/vara/config/wine.env` at the new `WINEPREFIX`.
+**Where files live:** Installers, logs, profiles, Wine prefix (`wineprefixes/vara`), launchers, and `wine.env` are under **`/opt/vara`** (tree created by `setup-headless-prereqs.sh`). Scripts honor `VARA_ROOT`, `VARA_INSTALLERS_DIR`, and related env vars. 
 
 ---
 
