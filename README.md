@@ -74,7 +74,7 @@ You need user **`ham`**, **`sudo`**, and a shell **in the repo clone**.
 | 4 | `ham` | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
 | 5 | `ham` | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). **Non-interactive:** set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** when stdin is not a TTY |
 | 6 | root (from repo) | `sudo ./install-varanny.sh` | Builds varanny → **`/opt/vara/bin/varanny`**, writes **`/opt/vara/config/varanny.json`**, installs **`varanny.service`**. Needs **`jq`**. DNS-SD lists FM+HF **only** for profiles that have **both** **`varafm.ini`** and **`vara.ini`**. **At least one complete profile is required** |
-| 7 (optional) | root | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. **Conflicts** with NetworkManager on the same WLAN unless you unmanage that interface |
+| 7 | root | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. **Conflicts** with NetworkManager on the same WLAN unless you unmanage that interface |
 | 8 | root or `ham` with `sudo` | `sudo reboot` | **Finish here:** full boot so **Xvfb**, **varanny**, and kernel/network changes come up cleanly |
 
 **If something goes wrong**
@@ -90,20 +90,18 @@ You need user **`ham`**, **`sudo`**, and a shell **in the repo clone**.
 Adjust step 5 for your hardware (one or both profile scripts). Step 7 only if you want the AP.
 
 ```bash
-# 1 — from clone, user with sudo:
 sudo ./setup-headless-prereqs.sh
 
-# 2–6 — as ham, from clone:
 ./setup-wine-for-vara.sh
 ./download-vara-installers.sh
 ./install-vara.sh
-./create-vara-ini-digirig-lite.sh          # and/or ./create-vara-ini-all-in-one-cable.sh
+./create-vara-ini-digirig-lite.sh          
+# and/or ./create-vara-ini-all-in-one-cable.sh
+
 sudo ./install-varanny.sh
 
-# 7 (optional) — as root:
-# sudo ./setup-wifi-ap.sh
+sudo ./setup-wifi-ap.sh
 
-# 8
 sudo reboot
 ```
 
