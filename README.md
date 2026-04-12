@@ -63,7 +63,7 @@ cd vara-on-a-stick
 | 2 | `./setup-wine-for-vara.sh` | Wine + winetricks + **32-bit prefix** |
 | 3 | `./download-vara-installers.sh` | Latest VARA FM/HF zips from Winlink → **`/opt/vara/installers`** |
 | 4 | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
-| 5 | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). **Non-interactive:** set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** when stdin is not a TTY |
+| 5 | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). Set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** to skip prompts (including from a terminal); if stdin is not a TTY, both must be set |
 | 5b (optional) | `sudo ./setup-ic705.sh` | **Icom IC-705 only:** udev symlinks **`/dev/ic-705a`** / **`ic-705b`**, installs **`/opt/vara/bin/start-rigctld-ic705.sh`**, **`dialout`** for **`ham`**, writes **`profiles/ic-705/*.ini`**. Skip if you do not use an IC-705 |
 | 6 | `sudo ./install-varanny.sh` | Builds varanny, writes **`varanny.json`**: one FM+HF modem pair per **complete** profile dir (digirig-lite, all-in-one-cable, and/or ic-705). IC-705 entries include **CatCtrl** (hamlib **`rigctld`** on port **4532**) |
 | 7 | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. |

@@ -27,7 +27,7 @@ Writes vara.ini and varafm.ini with All-In-One-Cable sound device strings. Fills
   Registration Code, Callsign Licence 0
 
 Interactive: enter callsign and VARA license when prompted.
-Non-interactive: set VARA_CALLSIGN and VARA_REGISTRATION_CODE (stdin must not be a TTY).
+Automation: set VARA_CALLSIGN and VARA_REGISTRATION_CODE (both required); prompts are skipped whenever both are set, including from an interactive terminal.
 
 Files are chmod 600. Point varanny (or similar) at this directory to swap configs.
 USAGE
@@ -43,14 +43,14 @@ validate_fields() {
 }
 
 collect_inputs() {
-  if [[ ! -t 0 ]] && [[ -n "${VARA_CALLSIGN:-}" ]] && [[ -n "${VARA_REGISTRATION_CODE:-}" ]]; then
+  if [[ -n "${VARA_CALLSIGN:-}" ]] && [[ -n "${VARA_REGISTRATION_CODE:-}" ]]; then
     CALLSIGN=$VARA_CALLSIGN
     REGISTRATION_CODE=$VARA_REGISTRATION_CODE
     validate_fields "$CALLSIGN" "$REGISTRATION_CODE"
     return
   fi
   if [[ ! -t 0 ]]; then
-    die "stdin is not a terminal; set VARA_CALLSIGN and VARA_REGISTRATION_CODE for non-interactive use"
+    die "stdin is not a terminal; set both VARA_CALLSIGN and VARA_REGISTRATION_CODE"
   fi
 
   local line

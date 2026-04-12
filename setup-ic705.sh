@@ -36,7 +36,7 @@ Environment:
   VARA_ROOT   default /opt/vara
   VARA_USER   default ham (for dialout; sudo run re-invokes --ini-only as this user)
 
-Non-interactive INIs: VARA_CALLSIGN and VARA_REGISTRATION_CODE (stdin not a TTY).
+INI automation: VARA_CALLSIGN and VARA_REGISTRATION_CODE (both); when set, prompts are skipped even in a terminal.
 
 Next: sudo ./install-varanny.sh
 USAGE
@@ -52,14 +52,14 @@ validate_fields() {
 }
 
 collect_inputs() {
-  if [[ ! -t 0 ]] && [[ -n "${VARA_CALLSIGN:-}" ]] && [[ -n "${VARA_REGISTRATION_CODE:-}" ]]; then
+  if [[ -n "${VARA_CALLSIGN:-}" ]] && [[ -n "${VARA_REGISTRATION_CODE:-}" ]]; then
     CALLSIGN=$VARA_CALLSIGN
     REGISTRATION_CODE=$VARA_REGISTRATION_CODE
     validate_fields "$CALLSIGN" "$REGISTRATION_CODE"
     return
   fi
   if [[ ! -t 0 ]]; then
-    die "stdin is not a terminal; set VARA_CALLSIGN and VARA_REGISTRATION_CODE for non-interactive use"
+    die "stdin is not a terminal; set both VARA_CALLSIGN and VARA_REGISTRATION_CODE"
   fi
 
   local line
