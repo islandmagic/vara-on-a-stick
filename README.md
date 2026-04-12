@@ -57,8 +57,6 @@ cd vara-on-a-stick
 
 ## 2. Recipe
 
-Run steps **2–5** and the **stop/wipe** rows below as user **`ham`** (not root). Steps **1**, **6–8** use **`sudo`** as shown.
-
 | Step | Command | What it does |
 |------|---------|----------------|
 | 1 | `sudo ./setup-headless-prereqs.sh` | Apt packages, creates **`/opt/vara`** layout |
