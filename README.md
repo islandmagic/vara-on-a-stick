@@ -105,7 +105,7 @@ sudo reboot
 - Replug the radio after udev install if it was already connected; confirm **`ls -l /dev/ic-705a`**. **`libhamlib-utils`** ( **`rigctld`** ) is already pulled in by **`setup-headless-prereqs.sh`**.
 - **`install-varanny.sh`** adds **IC705FM** / **IC705HF** only when **`profiles/ic-705/`** has **both** INIs; each modem includes **`CatCtrl`** pointing at **`/opt/vara/bin/start-rigctld-ic705.sh`**. The helper exits successfully if port **4532** is already in use (so FM and HF can share one **`rigctld`**).
 
-**Script options:** run **`./<script> -h`** or **`--help`** for flags and environment variables. **`create-vara-launchers.sh`** (same repo) rebuilds **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** after a VARA reinstall or path change — **`install-vara.sh`** runs it automatically when the file sits next to **`install-vara.sh`** in the clone.
+**Script options:** run **`./<script> -h`** or **`--help`** for flags and environment variables. **`create-vara-launchers.sh`** (same repo) rebuilds **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** after a VARA reinstall or path change — **`install-vara.sh`** runs it automatically when the file sits next to **`install-vara.sh`** in the clone. For **`install-varanny.sh`**, use **`--branch NAME`** or **`VARANNY_BRANCH`** to build from a specific git branch (default is the remote’s default branch).
 
 ---
 

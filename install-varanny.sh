@@ -18,6 +18,8 @@
 set -euo pipefail
 
 readonly VARANNY_REPO="${VARANNY_REPO:-https://github.com/islandmagic/varanny.git}"
+# Optional: check out and track this branch (clone -b / fetch + checkout + pull). Default: remote default branch.
+VARANNY_BRANCH="${VARANNY_BRANCH:-}"
 readonly VARANNY_SRC="${VARANNY_SRC:-/opt/varanny}"
 readonly VARA_ROOT="${VARA_ROOT:-/opt/vara}"
 readonly VARA_USER="${VARA_USER:-ham}"
@@ -38,6 +40,7 @@ Usage: sudo ./install-varanny.sh [options]
 
   --no-start     Enable unit only; do not start (or restart) varanny
   --no-enable    Write unit but do not systemctl enable
+  --branch NAME  Build varanny from this git branch (overrides VARANNY_BRANCH)
   -h, --help     This help
 
 Environment:
@@ -45,6 +48,7 @@ Environment:
   VARANNY_SRC     Clone directory (default: /opt/varanny)
   VARA_ROOT       Install prefix for bin + config (default: /opt/vara)
   VARANNY_REPO    Git URL
+  VARANNY_BRANCH  Git branch to clone/update (optional; same as --branch)
 
 Copies create-vara-ini-*.sh and create-vara-launchers.sh to /opt/vara/scripts/ when present.
 
@@ -81,11 +85,24 @@ ensure_deps() {
 clone_or_update() {
   if [[ -d "$VARANNY_SRC/.git" ]]; then
     echo "Updating $VARANNY_SRC"
-    git -C "$VARANNY_SRC" pull --ff-only
+    git -C "$VARANNY_SRC" fetch origin
+    if [[ -n "${VARANNY_BRANCH:-}" ]]; then
+      echo "Using branch: $VARANNY_BRANCH"
+      git -C "$VARANNY_SRC" rev-parse --verify "origin/${VARANNY_BRANCH}" >/dev/null 2>&1 ||
+        die "remote branch not found: origin/${VARANNY_BRANCH} (fetch failed or branch missing)"
+      git -C "$VARANNY_SRC" checkout -B "$VARANNY_BRANCH" "origin/${VARANNY_BRANCH}"
+      git -C "$VARANNY_SRC" pull --ff-only origin "$VARANNY_BRANCH"
+    else
+      git -C "$VARANNY_SRC" pull --ff-only
+    fi
   else
     echo "Cloning $VARANNY_REPO -> $VARANNY_SRC"
     mkdir -p "$(dirname "$VARANNY_SRC")"
-    git clone "$VARANNY_REPO" "$VARANNY_SRC"
+    if [[ -n "${VARANNY_BRANCH:-}" ]]; then
+      git clone -b "$VARANNY_BRANCH" "$VARANNY_REPO" "$VARANNY_SRC"
+    else
+      git clone "$VARANNY_REPO" "$VARANNY_SRC"
+    fi
   fi
 }
 
@@ -121,6 +138,7 @@ write_varanny_json() {
     --argjson cat_port 4532 \
     '
 {
+  EnableRemoteShutdown: true,
   Port: 8273,
   Delay: 0,
   Modems: (
@@ -202,6 +220,7 @@ EnvironmentFile=-${wine_env}
 WorkingDirectory=${VARA_ROOT}
 ExecStart=${VARA_ROOT}/bin/varanny -config ${VARA_ROOT}/config/varanny.json
 Restart=always
+AmbientCapabilities=CAP_SYS_BOOT
 
 [Install]
 WantedBy=multi-user.target
@@ -342,12 +361,16 @@ main() {
   local no_start=0 no_enable=0
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --no-start) no_start=1 ;;
-      --no-enable) no_enable=1 ;;
+      --no-start) no_start=1; shift ;;
+      --no-enable) no_enable=1; shift ;;
+      --branch)
+        [[ -n "${2:-}" ]] || die "--branch requires a branch name"
+        VARANNY_BRANCH=$2
+        shift 2
+        ;;
       -h | --help) usage; exit 0 ;;
       *) die "unknown option: $1" ;;
     esac
-    shift
   done
 
   require_root
