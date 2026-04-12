@@ -64,7 +64,8 @@ cd vara-on-a-stick
 | 3 | `./download-vara-installers.sh` | Latest VARA FM/HF zips from Winlink → **`/opt/vara/installers`** |
 | 4 | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
 | 5 | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). **Non-interactive:** set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** when stdin is not a TTY |
-| 6 | `sudo ./install-varanny.sh` | Builds varanny → **`/opt/vara/bin/varanny`** and creates configuration files |
+| 5b (optional) | `sudo ./setup-ic705.sh` | **Icom IC-705 only:** udev symlinks **`/dev/ic-705a`** / **`ic-705b`**, installs **`/opt/vara/bin/start-rigctld-ic705.sh`**, **`dialout`** for **`ham`**, writes **`profiles/ic-705/*.ini`**. Skip if you do not use an IC-705 |
+| 6 | `sudo ./install-varanny.sh` | Builds varanny, writes **`varanny.json`**: one FM+HF modem pair per **complete** profile dir (digirig-lite, all-in-one-cable, and/or ic-705). IC-705 entries include **CatCtrl** (hamlib **`rigctld`** on port **4532**) |
 | 7 | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. |
 | 8 | `sudo reboot` | |
 
@@ -96,7 +97,13 @@ sudo ./setup-wifi-ap.sh
 sudo reboot
 ```
 
-`install-varanny.sh` copies **`create-vara-ini-*.sh`** and **`create-vara-launchers.sh`** to **`/opt/vara/scripts/`** when present. To add a second radio later, create the missing INIs under **`/opt/vara/profiles/`** and run **`sudo ./install-varanny.sh`** again.
+`install-varanny.sh` copies **`create-vara-ini-*.sh`**, **`create-vara-launchers.sh`**, and **`setup-ic705.sh`** to **`/opt/vara/scripts/`** when present. To add another radio profile later, add the matching INIs under **`/opt/vara/profiles/`** and run **`sudo ./install-varanny.sh`** again.
+
+### Icom IC-705 (optional)
+
+- **`sudo ./setup-ic705.sh`** — single opt-in: writes udev rules under **`/etc/udev/rules.d/`** and **`/opt/vara/bin/start-rigctld-ic705.sh`** from embedded content (no separate template files in the repo), adds **`ham`** to **`dialout`**, then writes **`/opt/vara/profiles/ic-705/varafm.ini`** and **`vara.ini`** (USB Audio CODEC strings for Wine). Hamlib model **3085**, device **`/dev/ic-705a`**, TCP **4532**. Use **`--system-only`** for udev + helper only; **`./setup-ic705.sh --ini-only`** as **`ham`** to refresh INIs. Edit the generated udev file on the target if **`ATTRS{product}`** does not match your radio.
+- Replug the radio after udev install if it was already connected; confirm **`ls -l /dev/ic-705a`**. **`libhamlib-utils`** ( **`rigctld`** ) is already pulled in by **`setup-headless-prereqs.sh`**.
+- **`install-varanny.sh`** adds **IC705FM** / **IC705HF** only when **`profiles/ic-705/`** has **both** INIs; each modem includes **`CatCtrl`** pointing at **`/opt/vara/bin/start-rigctld-ic705.sh`**. The helper exits successfully if port **4532** is already in use (so FM and HF can share one **`rigctld`**).
 
 **Script options:** run **`./<script> -h`** or **`--help`** for flags and environment variables. **`create-vara-launchers.sh`** (same repo) rebuilds **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** after a VARA reinstall or path change — **`install-vara.sh`** runs it automatically when the file sits next to **`install-vara.sh`** in the clone.
 

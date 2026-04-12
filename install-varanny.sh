@@ -24,6 +24,7 @@ readonly VARA_USER="${VARA_USER:-ham}"
 readonly SYSTEMD_UNIT="/etc/systemd/system/varanny.service"
 readonly PROFILE_SUBDIR_DIGIRIG="profiles/digirig-lite"
 readonly PROFILE_SUBDIR_AIO="profiles/all-in-one-cable"
+readonly PROFILE_SUBDIR_IC705="profiles/ic-705"
 readonly VARA_WINE_ENV_FILE="${VARA_ROOT}/config/wine.env"
 
 die() {
@@ -48,9 +49,10 @@ Environment:
 Copies create-vara-ini-*.sh and create-vara-launchers.sh to /opt/vara/scripts/ when present.
 
 varanny.json lists FM+HF modems per profile that has *both* profile INIs:
-  /opt/vara/profiles/digirig-lite/varafm.ini and vara.ini
-  /opt/vara/profiles/all-in-one-cable/varafm.ini and vara.ini
+  .../profiles/digirig-lite/, all-in-one-cable/, and/or ic-705/ (varafm.ini + vara.ini)
+IC-705 modems include CatCtrl (hamlib rigctld via /opt/vara/bin/start-rigctld-ic705.sh).
 At least one complete profile is required. Needs: jq (apt install jq).
+Run sudo ./setup-ic705.sh before install if you use IC-705 (udev + rigctld helper + INIs).
 
 DefaultConfig paths: VARA FM/HF .ini under \$WINEPREFIX/drive_c (search first; if missing, use
   drive_c/VARA FM/VARAFM.ini and drive_c/VARA/VARA.ini). Missing files are created empty (touch).
@@ -99,6 +101,7 @@ write_varanny_json() {
   local fm_cmd=$2 hf_cmd=$3 fm_ini=$4 hf_ini=$5
   local dig_fm=$6 dig_hf=$7 aio_fm=$8 aio_hf=$9
   local inc_dig=${10} inc_aio=${11}
+  local ic705_fm=${12} ic705_hf=${13} inc_ic705=${14} rigctld_cmd=${15}
 
   jq -n \
     --arg fm_cmd "$fm_cmd" \
@@ -109,8 +112,13 @@ write_varanny_json() {
     --arg dig_hf "$dig_hf" \
     --arg aio_fm "$aio_fm" \
     --arg aio_hf "$aio_hf" \
+    --arg ic705_fm "$ic705_fm" \
+    --arg ic705_hf "$ic705_hf" \
+    --arg rigctld_cmd "$rigctld_cmd" \
     --argjson inc_dig "$inc_dig" \
     --argjson inc_aio "$inc_aio" \
+    --argjson inc_ic705 "$inc_ic705" \
+    --argjson cat_port 4532 \
     '
 {
   Port: 8273,
@@ -125,6 +133,13 @@ write_varanny_json() {
       {Name: "AllInOneCableFM", Type: "fm", Cmd: $fm_cmd, DefaultConfig: $fm_ini, Config: $aio_fm},
       {Name: "AllInOneCableHF", Type: "hf", Cmd: $hf_cmd, DefaultConfig: $hf_ini, Config: $aio_hf}
     ] else [] end)
+    +
+    (if $inc_ic705 == 1 then [
+      {Name: "IC705FM", Type: "fm", Cmd: $fm_cmd, DefaultConfig: $fm_ini, Config: $ic705_fm,
+       CatCtrl: {Port: $cat_port, Dialect: "hamlib", Cmd: $rigctld_cmd}},
+      {Name: "IC705HF", Type: "hf", Cmd: $hf_cmd, DefaultConfig: $hf_ini, Config: $ic705_hf,
+       CatCtrl: {Port: $cat_port, Dialect: "hamlib", Cmd: $rigctld_cmd}}
+    ] else [] end)
   )
 }
 ' >"$json"
@@ -132,12 +147,13 @@ write_varanny_json() {
   chown root:"$VARA_USER" "$json" 2>/dev/null || true
 }
 
-# Sets include_dig / include_aio (0|1); warns on partial profiles.
+# Sets include_dig / include_aio / include_ic705 (0|1); warns on partial profiles.
 resolve_profile_inclusion() {
-  local dig_fm=$1 dig_hf=$2 aio_fm=$3 aio_hf=$4
+  local dig_fm=$1 dig_hf=$2 aio_fm=$3 aio_hf=$4 ic705_fm=$5 ic705_hf=$6
 
   include_dig=0
   include_aio=0
+  include_ic705=0
 
   if [[ -f "$dig_fm" && -f "$dig_hf" ]]; then
     include_dig=1
@@ -155,8 +171,16 @@ resolve_profile_inclusion() {
     [[ -f "$aio_hf" ]] || echo "warning:   missing: $aio_hf" >&2
   fi
 
-  if [[ "$include_dig" -eq 0 && "$include_aio" -eq 0 ]]; then
-    die "no complete profile INIs for $VARA_USER — need both varafm.ini and vara.ini under ${VARA_ROOT}/${PROFILE_SUBDIR_DIGIRIG} and/or ${VARA_ROOT}/${PROFILE_SUBDIR_AIO} (see create-vara-ini-digirig-lite.sh / create-vara-ini-all-in-one-cable.sh as $VARA_USER)"
+  if [[ -f "$ic705_fm" && -f "$ic705_hf" ]]; then
+    include_ic705=1
+  elif [[ -f "$ic705_fm" || -f "$ic705_hf" ]]; then
+    echo "warning: incomplete IC-705 profile; skipping (need both INIs). Run sudo ./setup-ic705.sh or ./setup-ic705.sh --ini-only as $VARA_USER" >&2
+    [[ -f "$ic705_fm" ]] || echo "warning:   missing: $ic705_fm" >&2
+    [[ -f "$ic705_hf" ]] || echo "warning:   missing: $ic705_hf" >&2
+  fi
+
+  if [[ "$include_dig" -eq 0 && "$include_aio" -eq 0 && "$include_ic705" -eq 0 ]]; then
+    die "no complete profile INIs for $VARA_USER — need both varafm.ini and vara.ini under ${VARA_ROOT}/profiles/{digirig-lite,all-in-one-cable,ic-705}/ (see README and setup-ic705.sh for IC-705)"
   fi
 }
 
@@ -188,12 +212,47 @@ copy_helper_scripts() {
   local here
   here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   mkdir -p "${VARA_ROOT}/scripts"
-  for f in create-vara-ini-digirig-lite.sh create-vara-ini-all-in-one-cable.sh create-vara-launchers.sh; do
+  for f in create-vara-ini-digirig-lite.sh create-vara-ini-all-in-one-cable.sh create-vara-launchers.sh setup-ic705.sh; do
     if [[ -f "${here}/${f}" ]]; then
       install -m 0755 "${here}/${f}" "${VARA_ROOT}/scripts/${f}"
       echo "Installed ${VARA_ROOT}/scripts/${f}"
     fi
   done
+}
+
+# Same payload as setup-ic705.sh write_rigctld_helper_ic705 — keep in sync.
+install_start_rigctld_ic705() {
+  local dst="${VARA_ROOT}/bin/start-rigctld-ic705.sh"
+  mkdir -p "${VARA_ROOT}/bin"
+  cat >"$dst" <<'RIGSCRIPT'
+#!/usr/bin/env bash
+# Started by varanny CatCtrl (per IC-705 modem). Idempotent: exits 0 if TCP port already in use.
+# Override: RIGCTLD_MODEL RIGCTLD_DEVICE RIGCTLD_PORT
+
+set -euo pipefail
+
+MODEL="${RIGCTLD_MODEL:-3085}"
+DEVICE="${RIGCTLD_DEVICE:-/dev/ic-705a}"
+PORT="${RIGCTLD_PORT:-4532}"
+
+port_listening() {
+  command -v ss >/dev/null 2>&1 || return 1
+  ss -Hltn "sport = :$PORT" 2>/dev/null | grep -q .
+}
+
+if port_listening; then
+  exit 0
+fi
+
+[[ -e "$DEVICE" ]] || {
+  echo "start-rigctld-ic705: missing $DEVICE (plug IC-705 or fix udev); not starting rigctld" >&2
+  exit 1
+}
+
+exec rigctld -m "$MODEL" -r "$DEVICE" -t "$PORT"
+RIGSCRIPT
+  chmod 0755 "$dst"
+  echo "Wrote $dst"
 }
 
 # Varanny uses strings.Split(Args, " "); empty Args still yields a bogus empty argv element.
@@ -304,6 +363,7 @@ main() {
   chown "${VARA_USER}:${VARA_USER}" "${VARA_ROOT}/libexec" 2>/dev/null || true
   build_varanny
   copy_helper_scripts
+  install_start_rigctld_ic705
 
   if [[ -x "${VARA_ROOT}/scripts/create-vara-launchers.sh" ]]; then
     echo "Ensuring ${VARA_ROOT}/libexec/vara-fm and vara-hf exist..."
@@ -318,28 +378,39 @@ main() {
   echo "Resolving DefaultConfig VARA .ini paths for user $VARA_USER..."
   local fm_cmd hf_cmd fm_ini hf_ini
   local profile_dig_fm profile_dig_hf profile_aio_fm profile_aio_hf
+  local profile_ic705_fm profile_ic705_hf rigctld_helper
 
   fm_cmd="${VARA_ROOT}/libexec/varanny-exec-fm"
   hf_cmd="${VARA_ROOT}/libexec/varanny-exec-hf"
+  rigctld_helper="${VARA_ROOT}/bin/start-rigctld-ic705.sh"
 
   profile_dig_fm="${VARA_ROOT}/${PROFILE_SUBDIR_DIGIRIG}/varafm.ini"
   profile_dig_hf="${VARA_ROOT}/${PROFILE_SUBDIR_DIGIRIG}/vara.ini"
   profile_aio_fm="${VARA_ROOT}/${PROFILE_SUBDIR_AIO}/varafm.ini"
   profile_aio_hf="${VARA_ROOT}/${PROFILE_SUBDIR_AIO}/vara.ini"
+  profile_ic705_fm="${VARA_ROOT}/${PROFILE_SUBDIR_IC705}/varafm.ini"
+  profile_ic705_hf="${VARA_ROOT}/${PROFILE_SUBDIR_IC705}/vara.ini"
 
   fm_ini=$(resolve_default_config_ini "$VARA_USER" fm)
   hf_ini=$(resolve_default_config_ini "$VARA_USER" hf)
   ensure_default_ini_file "$VARA_USER" "$fm_ini"
   ensure_default_ini_file "$VARA_USER" "$hf_ini"
 
-  resolve_profile_inclusion "$profile_dig_fm" "$profile_dig_hf" "$profile_aio_fm" "$profile_aio_hf"
+  resolve_profile_inclusion "$profile_dig_fm" "$profile_dig_hf" "$profile_aio_fm" "$profile_aio_hf" \
+    "$profile_ic705_fm" "$profile_ic705_hf"
+
+  if [[ "$include_ic705" -eq 1 ]]; then
+    [[ -x "$rigctld_helper" ]] ||
+      die "missing $rigctld_helper — run sudo ./setup-ic705.sh --system-only (or full setup) from this repo"
+  fi
 
   write_varanny_json "${VARA_ROOT}/config/varanny.json" \
     "$fm_cmd" "$hf_cmd" "$fm_ini" "$hf_ini" \
     "$profile_dig_fm" "$profile_dig_hf" "$profile_aio_fm" "$profile_aio_hf" \
-    "$include_dig" "$include_aio"
+    "$include_dig" "$include_aio" \
+    "$profile_ic705_fm" "$profile_ic705_hf" "$include_ic705" "$rigctld_helper"
 
-  echo "Wrote ${VARA_ROOT}/config/varanny.json (profiles included: DigirigLite=$include_dig AllInOneCable=$include_aio)."
+  echo "Wrote ${VARA_ROOT}/config/varanny.json (DigirigLite=$include_dig AllInOneCable=$include_aio IC705=$include_ic705)."
 
   install_systemd_unit
 
@@ -356,13 +427,11 @@ main() {
   echo "varanny binary: ${VARA_ROOT}/bin/varanny"
   echo "Config:         ${VARA_ROOT}/config/varanny.json"
   local modem_note="via ${VARA_ROOT}/libexec/varanny-exec-* → vara-fm / vara-hf"
-  if [[ "$include_dig" -eq 1 && "$include_aio" -eq 1 ]]; then
-    echo "Modems:         Digirig Lite + All-In-One Cable ($modem_note)"
-  elif [[ "$include_dig" -eq 1 ]]; then
-    echo "Modems:         Digirig Lite only ($modem_note)"
-  else
-    echo "Modems:         All-In-One Cable only ($modem_note)"
-  fi
+  local parts=()
+  [[ "$include_dig" -eq 1 ]] && parts+=("Digirig Lite")
+  [[ "$include_aio" -eq 1 ]] && parts+=("All-In-One Cable")
+  [[ "$include_ic705" -eq 1 ]] && parts+=("IC-705 (CatCtrl → $rigctld_helper)")
+  echo "Modems:         ${parts[*]} ($modem_note)"
   echo "Service user:   $VARA_USER (same as Xvfb in typical setups)"
 }
 
