@@ -1,10 +1,10 @@
 # VARA On A Stick
 
-Bash helpers to build a **headless Debian** VARA node: Xvfb, Wine, Winlink **VARA FM/HF**, Wi-Fi AP, and [varanny](https://github.com/islandmagic/varanny) with per–sound-card profile INIs.
+Bash helpers to build a **headless Debian** VARA modem appliance. It relies on Xvfb to create a virtual display, Wine to run VARA FM/HF, and [varanny](https://github.com/islandmagic/varanny) for orchestration. A Wi-Fi Access Point is automatically created so it can be used in the field.
 
-Target hardware can be compact PCs (e.g. [HIGOLEPC Mini PC Stick](https://goleminipc.com/products/higolepc-mini-pc-stick-intel-celeron-j4115-windows-11-usb-pd3-0-hdmi-4k-gigabit-ethernet-wifi-5-0-bt-5-2-for-office-home?variant=45594960986392)); headless Linux runs well on modest RAM (e.g. 4 GB).
+Target hardware is meant to be compact PCs (e.g. [HIGOLEPC Mini PC Stick](https://goleminipc.com/products/higolepc-mini-pc-stick-intel-celeron-j4115-windows-11-usb-pd3-0-hdmi-4k-gigabit-ethernet-wifi-5-0-bt-5-2-for-office-home?variant=45594960986392)); headless Linux runs well on modest RAM (e.g. 4 GB).
 
-**Where files live:** Installers, logs, profiles, Wine prefix (`wineprefixes/vara`), launchers, and `wine.env` are under **`/opt/vara`** (tree created by `setup-headless-prereqs.sh`). Scripts honor `VARA_ROOT`, `VARA_INSTALLERS_DIR`, and related env vars. 
+Installers, logs, profiles, Wine prefix (`wineprefixes/vara`), launchers, and `wine.env` are under **`/opt/vara`**. 
 
 ---
 
@@ -19,21 +19,20 @@ Target hardware can be compact PCs (e.g. [HIGOLEPC Mini PC Stick](https://golemi
 |--------|------------------|
 | Hostname | `VARA-Modem` |
 | Root password | Disabled — use `sudo` and user `ham` |
-| User | Normal account **`ham`** (lab password ok; change if exposed) |
+| User | Normal account **`ham`** |
 | Disk | Guided — entire disk |
 | Software | **SSH server** + **standard system utilities**; **no** desktop (uncheck GNOME, KDE, Xfce, …) |
 
 3. Reboot into the installed system.
 
-**On the console** — enable SSH and note the LAN IP:
+**On the console**, enable SSH and note the LAN IP in case you need it. 
 
 ```bash
 sudo systemctl enable ssh
 sudo systemctl start ssh
 ip a
+sudo reboot
 ```
-
-Use the IPv4 on your Ethernet/Wi‑Fi interface (e.g. `eth0`, `enp0s3`, `wlan0`) for SSH below.
 
 ---
 
@@ -42,7 +41,7 @@ Use the IPv4 on your Ethernet/Wi‑Fi interface (e.g. `eth0`, `enp0s3`, `wlan0`)
 From your workstation:
 
 ```bash
-ssh ham@<IP>
+ssh ham@vara-modem.local
 ```
 
 On the target:
@@ -54,38 +53,34 @@ git clone https://github.com/islandmagic/vara-on-a-stick.git
 cd vara-on-a-stick
 ```
 
-The recipe below assumes **`cd` into this directory** (or use full paths to the scripts).
-
 ---
 
-## 2. Recipe: setup scripts in order
+## 2. Recipe
 
-You need user **`ham`**, **`sudo`**, and a shell **in the repo clone**.
+Run steps **2–5** and the **stop/wipe** rows below as user **`ham`** (not root). Steps **1**, **6–8** use **`sudo`** as shown.
 
-### Who runs what
-
-| Step | Who | Command | What it does |
-|------|-----|---------|----------------|
-| 1 | user with `sudo` | `./setup-headless-prereqs.sh` | Apt packages, **Xvfb on `:1`** as `ham`, tools (`jq`, Go, …); creates **`/opt/vara`** layout |
-| 2 | `ham` | `./setup-wine-for-vara.sh` | Wine + winetricks + **32-bit prefix**; writes **`/opt/vara/config/wine.env`** — needs a display (usually **`DISPLAY=:1`**) |
-| 3 | `ham` | `./download-vara-installers.sh` | Latest VARA FM/HF zips from Winlink → **`/opt/vara/installers`** |
-| 4 | `ham` | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
-| 5 | `ham` | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). **Non-interactive:** set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** when stdin is not a TTY |
-| 6 | root (from repo) | `sudo ./install-varanny.sh` | Builds varanny → **`/opt/vara/bin/varanny`**, writes **`/opt/vara/config/varanny.json`**, installs **`varanny.service`**. Needs **`jq`**. DNS-SD lists FM+HF **only** for profiles that have **both** **`varafm.ini`** and **`vara.ini`**. **At least one complete profile is required** |
-| 7 | root | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. **Conflicts** with NetworkManager on the same WLAN unless you unmanage that interface |
-| 8 | root or `ham` with `sudo` | `sudo reboot` | **Finish here:** full boot so **Xvfb**, **varanny**, and kernel/network changes come up cleanly |
+| Step | Command | What it does |
+|------|---------|----------------|
+| 1 | `sudo ./setup-headless-prereqs.sh` | Apt packages, creates **`/opt/vara`** layout |
+| 2 | `./setup-wine-for-vara.sh` | Wine + winetricks + **32-bit prefix** |
+| 3 | `./download-vara-installers.sh` | Latest VARA FM/HF zips from Winlink → **`/opt/vara/installers`** |
+| 4 | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
+| 5 | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). **Non-interactive:** set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** when stdin is not a TTY |
+| 6 | `sudo ./install-varanny.sh` | Builds varanny → **`/opt/vara/bin/varanny`** and creates configuration files |
+| 7 | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. |
+| 8 | `sudo reboot` | |
 
 **If something goes wrong**
 
-| Situation | Who | Command |
-|-----------|-----|---------|
-| Stuck Wine / installer | `ham` (not root) | `./stop-vara-wine.sh` — add **`--force`** if needed |
-| Reset Wine + VARA data (keep varanny) | `ham` (not root) | `./wipe-vara-wine.sh` — see **`-h`**; optional **`--strip-bashrc`**. Removes prefix, installers, logs, profiles, **`libexec/*`**, **`wine.env`** — **not** **`bin/varanny`**, **`varanny.json`**, **`varanny.service`** |
-| Nuke **`/opt/vara`** + varanny unit | `ham` with `sudo` or root | `./wipe-vara-wine.sh --all` — removes all of **`VARA_ROOT`**, **`varanny.service`**, and **`~/.config/vara`** for the VARA user — see **`-h`** |
+| Situation | Command |
+|-----------|---------|
+| Stuck Wine / installer | `./stop-vara-wine.sh` add **`--force`** if needed |
+| Reset Wine + VARA data (keep varanny) | `./wipe-vara-wine.sh` |
+| Nuke **`/opt/vara`** | `./wipe-vara-wine.sh --all` |
 
 ### Commands in order (copy-paste skeleton)
 
-Adjust step 5 for your hardware (one or both profile scripts). Step 7 only if you want the AP.
+Adjust step 5 for your hardware (one or both profile scripts).
 
 ```bash
 sudo ./setup-headless-prereqs.sh
