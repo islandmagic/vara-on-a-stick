@@ -77,36 +77,6 @@ cd vara-on-a-stick
 | Reset Wine + VARA data (keep varanny) | `./wipe-vara-wine.sh` |
 | Nuke **`/opt/vara`** | `./wipe-vara-wine.sh --all` |
 
-### Commands in order (copy-paste skeleton)
-
-Adjust step 5 for your hardware (one or both profile scripts).
-
-```bash
-sudo ./setup-headless-prereqs.sh
-
-./setup-wine-for-vara.sh
-./download-vara-installers.sh
-./install-vara.sh
-./create-vara-ini-digirig-lite.sh          
-# and/or ./create-vara-ini-all-in-one-cable.sh
-
-sudo ./install-varanny.sh
-
-sudo ./setup-wifi-ap.sh
-
-sudo reboot
-```
-
-`install-varanny.sh` copies **`create-vara-ini-*.sh`**, **`create-vara-launchers.sh`**, and **`setup-ic705.sh`** to **`/opt/vara/scripts/`** when present. To add another radio profile later, add the matching INIs under **`/opt/vara/profiles/`** and run **`sudo ./install-varanny.sh`** again.
-
-### Icom IC-705 (optional)
-
-- **`sudo ./setup-ic705.sh`** — single opt-in: writes udev rules under **`/etc/udev/rules.d/`** and **`/opt/vara/bin/start-rigctld-ic705.sh`** from embedded content (no separate template files in the repo), adds **`ham`** to **`dialout`**, then writes **`/opt/vara/profiles/ic-705/varafm.ini`** and **`vara.ini`** (USB Audio CODEC strings for Wine). Hamlib model **3085**, device **`/dev/ic-705a`**, TCP **4532**. Use **`--system-only`** for udev + helper only; **`./setup-ic705.sh --ini-only`** as **`ham`** to refresh INIs. Edit the generated udev file on the target if **`ATTRS{product}`** does not match your radio.
-- Replug the radio after udev install if it was already connected; confirm **`ls -l /dev/ic-705a`**. **`libhamlib-utils`** ( **`rigctld`** ) is already pulled in by **`setup-headless-prereqs.sh`**.
-- **`install-varanny.sh`** adds **IC705FM** / **IC705HF** only when **`profiles/ic-705/`** has **both** INIs; each modem includes **`CatCtrl`** pointing at **`/opt/vara/bin/start-rigctld-ic705.sh`**. The helper exits successfully if port **4532** is already in use (so FM and HF can share one **`rigctld`**).
-
-**Script options:** run **`./<script> -h`** or **`--help`** for flags and environment variables. **`create-vara-launchers.sh`** (same repo) rebuilds **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** after a VARA reinstall or path change — **`install-vara.sh`** runs it automatically when the file sits next to **`install-vara.sh`** in the clone. For **`install-varanny.sh`**, use **`--branch NAME`** or **`VARANNY_BRANCH`** to build from a specific git branch (default is the remote’s default branch).
-
 ---
 
 ## Visual VARA / Wine over SSH (optional)
@@ -142,7 +112,7 @@ Normally **Xvfb** on **`DISPLAY=:1`** (from **`wine.env`**) is enough for unatte
 
 ---
 
-## Install-vara (step 4): timing, noise, and success
+## Install-vara: timing, noise, and success
 
 ### Timeouts and “hangs”
 
@@ -159,7 +129,7 @@ Large **Wine** spew often **does not** mean failure:
 | **`ntlm_auth was not found`** / **no NTLM support** | Install **`winbind`** (`sudo apt install winbind`); **`setup-wine-for-vara.sh`** pulls it in — clears warnings |
 | **`err:msidb:TransformView_set_row`** | MSI transform noise — ignore unless the install actually fails |
 
-### How you know step 4 succeeded
+### How you know it succeeded
 
 With **`create-vara-launchers.sh`** beside **`install-vara.sh`**, a good run ends like this (noise above does not cancel success):
 
@@ -172,8 +142,6 @@ Add to PATH, e.g. in ~/.profile:
 
 Done. Inno logs: /opt/vara/logs
 ```
-
-(Log path follows **`VARA_INSTALL_LOG_DIR`** / **`VARA_ROOT`** if you override defaults.)
 
 ---
 
