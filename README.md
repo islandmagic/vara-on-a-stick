@@ -4,11 +4,11 @@ Bash helpers to build a **headless Debian** VARA modem appliance. It relies on X
 
 Target hardware is meant to be compact PCs (e.g. [HIGOLEPC Mini PC Stick](https://goleminipc.com/products/higolepc-mini-pc-stick-intel-celeron-j4115-windows-11-usb-pd3-0-hdmi-4k-gigabit-ethernet-wifi-5-0-bt-5-2-for-office-home?variant=45594960986392)); headless Linux runs well on modest RAM (e.g. 4 GB).
 
-Installers, logs, profiles, Wine prefix (`wineprefixes/vara`), launchers, and `wine.env` are under **`/opt/vara`**. 
+Everything lives under **`/opt/vara`**. 
 
 ---
 
-## 0. Install Debian
+## 0. Install Debian (no desktop)
 
 1. Download the [Debian 13](https://www.debian.org/download) ISO; write it to USB (`dd`, [balenaEtcher](https://etcher.balena.io/), or the installer’s copy tool).
 2. Boot the machine from USB and run the installer.
@@ -57,16 +57,19 @@ cd vara-on-a-stick
 
 ## 2. Recipe
 
-| Step | Command | What it does |
+Scripts are idempotent. If something fails or you skipped a step, re-run the script.
+
+| Step | Command |  |
 |------|---------|----------------|
-| 1 | `sudo ./setup-headless-prereqs.sh` | Apt packages, creates **`/opt/vara`** layout |
-| 2 | `./setup-wine-for-vara.sh` | Wine + winetricks + **32-bit prefix** |
+| 1 | `sudo ./setup-headless-prereqs.sh` | Install dependencies, creates **`/opt/vara`** layout |
+| 2 | `./setup-wine-for-vara.sh` | Wine + winetricks |
 | 3 | `./download-vara-installers.sh` | Latest VARA FM/HF zips from Winlink → **`/opt/vara/installers`** |
-| 4 | `./install-vara.sh` | Silent Wine install of FM/HF; writes **`/opt/vara/libexec/vara-fm`** and **`vara-hf`** if **`create-vara-launchers.sh`** is in the same directory. **Slowest step** — see [Install-vara (step 4)](#install-vara-step-4-timing-noise-and-success) |
-| 5 | `./create-vara-ini-digirig-lite.sh` **and/or** `./create-vara-ini-all-in-one-cable.sh` | Profile INIs under **`/opt/vara/profiles/…`** (only for hardware you use). Set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** to skip prompts (including from a terminal); if stdin is not a TTY, both must be set |
-| 5b (optional) | `sudo ./setup-ic705.sh` | **Icom IC-705 only:** udev symlinks **`/dev/ic-705a`** / **`ic-705b`**, installs **`/opt/vara/bin/start-rigctld-ic705.sh`**, **`dialout`** for **`ham`**, writes **`profiles/ic-705/*.ini`**. Skip if you do not use an IC-705 |
-| 6 | `sudo ./install-varanny.sh` | Builds varanny, writes **`varanny.json`**: one FM+HF modem pair per **complete** profile dir (digirig-lite, all-in-one-cable, and/or ic-705). IC-705 entries include **CatCtrl** (hamlib **`rigctld`** on port **4532**) |
-| 7 | `sudo ./setup-wifi-ap.sh` | Wi‑Fi AP (**hostapd** + **dnsmasq**); **`--install-deps`** if packages missing. |
+| 4 | `./install-vara.sh` | Silent Wine install of VARA FM/HF; **Takes a while!** |
+| 5 | `./create-vara-ini-digirig-lite.sh` | Creates VARA profile for **Digirig Lite**. Set **`VARA_CALLSIGN`** and **`VARA_REGISTRATION_CODE`** to skip prompts |
+| 5a (optional) | `./create-vara-ini-all-in-one-cable.sh` | Creates VARA profile for **All In One Cable** |
+| 5b (optional) | `sudo ./setup-ic705.sh` | Creates VARA profile for **Icom IC-705** |
+| 6 | `sudo ./install-varanny.sh` | Builds varanny and config file |
+| 7 | `sudo ./setup-wifi-ap.sh` | Setup a Wi‑Fi AP named **VARA-Modem** (psw: **varamodem**) |
 | 8 | `sudo reboot` | |
 
 **If something goes wrong**
